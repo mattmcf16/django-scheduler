@@ -203,40 +203,20 @@ class EditEventView(EventEditMixin, UpdateView):
 
     def form_valid(self, form):
         event = form.save(commit=False)
-        old_event = Event.objects.get(pk=event.pk)
-        dts = datetime.timedelta(
-            minutes=int((event.start - old_event.start).total_seconds() / 60)
-        )
-        dte = datetime.timedelta(
-            minutes=int((event.end - old_event.end).total_seconds() / 60)
-        )
-        event.occurrence_set.all().update(
-            original_start=F("original_start") + dts,
-            original_end=F("original_end") + dte,
-        )
-        event.save()
-        return super().form_valid(form)
-
+        event.save()  # Save the event to ensure it has an ID for many-to-many relationships.
+        form.save_m2m()  # Save the many-to-many data for the form.
+        return HttpResponseRedirect(event.get_absolute_url())
 
 class CreateEventView(EventEditMixin, CreateView):
     form_class = EventForm
     template_name = "schedule/create_event.html"
 
-    def get_initial(self):
-        date = coerce_date_dict(self.request.GET)
-        initial_data = None
-        if date:
-            try:
-                start = datetime.datetime(**date)
-                initial_data = {
-                    "start": start,
-                    "end": start + datetime.timedelta(minutes=30),
-                }
-            except TypeError:
-                raise Http404
-            except ValueError:
-                raise Http404
-        return initial_data
+    def form_valid(self, form):
+        event = form.save(commit=False)
+        event.creator = self.request.user  # or any other logic you have for setting the creator
+        event.save()  # Save the event to ensure it has an ID for many-to-many relationships.
+        form.save_m2m()  # This saves the form's many-to-many fields.
+        return HttpResponseRedirect(event.get_absolute_url())
 
     def form_valid(self, form):
         event = form.save(commit=False)
@@ -244,7 +224,6 @@ class CreateEventView(EventEditMixin, CreateView):
         event.calendar = get_object_or_404(Calendar, slug=self.kwargs["calendar_slug"])
         event.save()
         return HttpResponseRedirect(event.get_absolute_url())
-
 
 class DeleteEventView(EventEditMixin, DeleteView):
     template_name = "schedule/delete_event.html"
