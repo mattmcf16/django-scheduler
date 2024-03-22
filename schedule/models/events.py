@@ -83,9 +83,9 @@ class Event(models.Model):
         db_index=True,
         help_text=_("This date is ignored for one time only events."),
     )
-    calendar = models.ForeignKey(
-        Calendar, on_delete=models.CASCADE, verbose_name=_("calendar")
-    )
+
+    calendars = models.ManyToManyField('Calendar', related_name='events', blank=True, verbose_name=_("Calendars"))
+    
     color_event = models.CharField(_("Color event"), blank=True, max_length=10)
     objects = EventManager()
 
