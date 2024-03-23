@@ -4,6 +4,7 @@ from functools import wraps
 from django.conf import settings
 from django.http import HttpResponseNotFound, HttpResponseRedirect
 from django.utils import timezone
+from .models import Occurrence
 
 from schedule.settings import (
     CALENDAR_VIEW_PERM,
@@ -23,41 +24,35 @@ class EventListManager:
     def __init__(self, events):
         self.events = events
 
-    def occurrences_after(self, after=None):
-        """
-        It is often useful to know what the next occurrence is given a list of
-        events.  This function produces a generator that yields the
-        the most recent occurrence after the date ``after`` from any of the
-        events in ``self.events``
-        """
-        from schedule.models import Occurrence
+def occurrences_after(self, after=None):
+    if after is None:
+        after = timezone.now()
+    occ_replacer = OccurrenceReplacer(Occurrence.objects.filter(event__in=self.events))
+    generators = [event._occurrences_after_generator(after) for event in self.events]
+    occurrences = []
 
-        if after is None:
-            after = timezone.now()
-        occ_replacer = OccurrenceReplacer(
-            Occurrence.objects.filter(event__in=self.events)
-        )
-        generators = [
-            event._occurrences_after_generator(after) for event in self.events
-        ]
-        occurrences = []
+    for generator in generators:
+        try:
+            first_occurrence = next(generator)
+            # Assuming `first_occurrence` has a datetime attribute for comparison,
+            # such as `start_time`. Adjust as necessary.
+            heapq.heappush(occurrences, (first_occurrence.start_time, first_occurrence, generator))
+        except StopIteration:
+            pass
 
-        for generator in generators:
-            try:
-                heapq.heappush(occurrences, (next(generator), generator))
-            except StopIteration:
-                pass
+    while occurrences:
+        _, current_occurrence, generator = occurrences[0]
 
-        while occurrences:
-            generator = occurrences[0][1]
+        try:
+            # Fetch the next occurrence from the same generator
+            next_occurrence = next(generator)
+            # Replace the current top of the heap with the next occurrence
+            heapq.heapreplace(occurrences, (next_occurrence.start_time, next_occurrence, generator))
+        except StopIteration:
+            # If no more occurrences, remove the current top of the heap
+            heapq.heappop(occurrences)
 
-            try:
-                next_occurrence = heapq.heapreplace(
-                    occurrences, (next(generator), generator)
-                )[0]
-            except StopIteration:
-                next_occurrence = heapq.heappop(occurrences)[0]
-            yield occ_replacer.get_occurrence(next_occurrence)
+        yield occ_replacer.get_occurrence(current_occurrence)
 
 
 class OccurrenceReplacer:
