@@ -25,7 +25,6 @@ class EventListManager:
 
     def occurrences_after(self, after=None):
         from .models import Occurrence
-    def occurrences_after(self, after=None):
         if after is None:
             after = timezone.now()
     
