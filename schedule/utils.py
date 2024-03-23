@@ -42,7 +42,7 @@ class EventListManager:
 
         while occurrences:
             _, current_occurrence, generator = occurrences[0]
-
+            '''
             try:
                 # Fetch the next occurrence from the same generator
                 next_occurrence = next(generator)
@@ -51,6 +51,12 @@ class EventListManager:
             except StopIteration:
                 # If no more occurrences, remove the current top of the heap
                 heapq.heappop(occurrences)
+            '''
+            try:
+                first_occurrence = next(generator)
+                heapq.heappush(occurrences, first_occurrence.start)
+            except StopIteration:
+                pass
 
         yield occ_replacer.get_occurrence(current_occurrence)
 
