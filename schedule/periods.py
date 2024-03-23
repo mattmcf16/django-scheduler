@@ -8,7 +8,6 @@ from django.template.defaultfilters import date as date_filter
 from django.utils import timezone
 from django.utils.dates import WEEKDAYS, WEEKDAYS_ABBR
 from django.utils.translation import gettext
-from datetime import datetime
 
 from schedule.models import Occurrence
 from schedule.settings import SHOW_CANCELLED_OCCURRENCES
