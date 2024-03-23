@@ -4,7 +4,6 @@ from functools import wraps
 from django.conf import settings
 from django.http import HttpResponseNotFound, HttpResponseRedirect
 from django.utils import timezone
-from .models import Occurrence
 
 from schedule.settings import (
     CALENDAR_VIEW_PERM,
@@ -25,6 +24,7 @@ class EventListManager:
         self.events = events
 
 def occurrences_after(self, after=None):
+    from .models import Occurrence
     if after is None:
         after = timezone.now()
     occ_replacer = OccurrenceReplacer(Occurrence.objects.filter(event__in=self.events))
