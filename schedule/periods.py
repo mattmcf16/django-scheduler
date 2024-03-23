@@ -294,8 +294,11 @@ class Month(Period):
     def current_year(self):
         return Year(self.events, self.start, tzinfo=self.tzinfo)
     
-    def from_datetime(cls, dt):
-        return cls(dt.year, dt.month)
+    @classmethod
+    def from_datetime(cls, dt, events=None, tzinfo=pytz.utc):
+        if events is None:
+            events = []  # Assuming default events list if not provided
+        return cls(events=events, date=dt, tzinfo=tzinfo)
 
     def prev_year(self):
         start = datetime.datetime.min.replace(
@@ -377,9 +380,11 @@ class Week(Period):
 
     next = __next__ = next_week
 
-    def from_datetime(cls, dt):
-        year, week_number, _ = dt.isocalendar()
-        return cls(year, week_number)
+    @classmethod
+    def from_datetime(cls, dt, events=None, tzinfo=pytz.utc):
+        if events is None:
+            events = []  # Assuming default events list if not provided
+        return cls(events=events, date=dt, tzinfo=tzinfo)
 
     def current_month(self):
         return Month(self.events, self.start, tzinfo=self.tzinfo)
