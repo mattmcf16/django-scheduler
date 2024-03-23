@@ -25,41 +25,42 @@ class EventListManager:
 
     def occurrences_after(self, after=None):
         from .models import Occurrence
+    def occurrences_after(self, after=None):
         if after is None:
             after = timezone.now()
+    
+        # Initialize the OccurrenceReplacer with a queryset of Occurrence objects.
         occ_replacer = OccurrenceReplacer(Occurrence.objects.filter(event__in=self.events))
+    
+        # Prepare a list to hold generators for each event's occurrences after 'after'
         generators = [event._occurrences_after_generator(after) for event in self.events]
+    
+        # A heap to manage the next occurrence from each generator, sorted by start time.
         occurrences = []
 
+        # Populate the heap with the first occurrence from each generator, if available.
         for generator in generators:
-            '''
             try:
                 first_occurrence = next(generator)
-                # Assuming `first_occurrence` has a datetime attribute for comparison,
-                # such as `start`. Adjust as necessary.
+                # Push a tuple of (start time, occurrence, generator) onto the heap.
                 heapq.heappush(occurrences, (first_occurrence.start, first_occurrence, generator))
             except StopIteration:
-                pass
-            '''
-            try:
-                first_occurrence = next(generator)
-                heapq.heappush(occurrences, first_occurrence.start)
-            except StopIteration:
-                pass
-
+                continue  # Skip generators that have no occurrences.
+    
+        # Continuously yield the next chronological occurrence from the heap.
         while occurrences:
-            _, current_occurrence, generator = occurrences[0]
+            # Pop the occurrence with the earliest start time from the heap.
+            start_time, current_occurrence, generator = heapq.heappop(occurrences)
+        
+            # Yield the current occurrence after replacing it with a persisted one, if applicable.
+            yield occ_replacer.get_occurrence(current_occurrence)
+        
+            # Attempt to fetch and push the next occurrence from the same generator.
             try:
-                # Fetch the next occurrence from the same generator
                 next_occurrence = next(generator)
-                # Replace the current top of the heap with the next occurrence
-                heapq.heapreplace(occurrences, (next_occurrence.start, next_occurrence, generator))
+                heapq.heappush(occurrences, (next_occurrence.start, next_occurrence, generator))
             except StopIteration:
-                # If no more occurrences, remove the current top of the heap
-                heapq.heappop(occurrences)
-            
-
-        yield occ_replacer.get_occurrence(current_occurrence)
+                continue  # No more occurrences from this generator, move on to the next.
 
 
 class OccurrenceReplacer:
