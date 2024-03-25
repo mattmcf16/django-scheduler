@@ -23,7 +23,7 @@ class EventListManager:
     def __init__(self, events):
         self.events = events
 
-    def occurrences_after(self, after=None):
+    def occurrences_after(self, after=None, max_occurrences_per_generator=10):
         from .models import Occurrence
         if after is None:
             after = timezone.now()
@@ -31,20 +31,18 @@ class EventListManager:
         generators = [event._occurrences_after_generator(after) for event in self.events]
         occurrences = []
         for i, generator in enumerate(generators):
-            try:
-                first_occurrence = next(generator)
-                heapq.heappush(occurrences, (first_occurrence.start, first_occurrence, i))
-            except StopIteration:
-                continue
+            occurrences_count = 0
+            while occurrences_count < max_occurrences_per_generator:
+                try:
+                    occurrence = next(generator)
+                    heapq.heappush(occurrences, (occurrence.start, occurrence, i))
+                    occurrences_count += 1
+                except StopIteration:
+                    break
 
         while occurrences:
             start_time, current_occurrence, generator_index = heapq.heappop(occurrences)
             yield occ_replacer.get_occurrence(current_occurrence)
-            try:
-                next_occurrence = next(generators[generator_index])
-                heapq.heappush(occurrences, (next_occurrence.start, next_occurrence, generator_index))
-            except StopIteration:
-                continue
 
 
 class OccurrenceReplacer:
