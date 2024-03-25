@@ -27,39 +27,24 @@ class EventListManager:
         from .models import Occurrence
         if after is None:
             after = timezone.now()
-    
-        # Initialize the OccurrenceReplacer with a queryset of Occurrence objects.
         occ_replacer = OccurrenceReplacer(Occurrence.objects.filter(event__in=self.events))
-    
-        # Prepare a list to hold generators for each event's occurrences after 'after'
         generators = [event._occurrences_after_generator(after) for event in self.events]
-    
-        # A heap to manage the next occurrence from each generator, sorted by start time.
         occurrences = []
-
-        # Populate the heap with the first occurrence from each generator, if available.
-        for generator in generators:
+        for i, generator in enumerate(generators):
             try:
                 first_occurrence = next(generator)
-                # Push a tuple of (start time, occurrence, generator) onto the heap.
-                heapq.heappush(occurrences, (first_occurrence.start, first_occurrence, generator))
+                heapq.heappush(occurrences, (first_occurrence.start, first_occurrence, i))
             except StopIteration:
-                continue  # Skip generators that have no occurrences.
-    
-        # Continuously yield the next chronological occurrence from the heap.
+                continue
+
         while occurrences:
-            # Pop the occurrence with the earliest start time from the heap.
-            start_time, current_occurrence, generator = heapq.heappop(occurrences)
-        
-            # Yield the current occurrence after replacing it with a persisted one, if applicable.
+            start_time, current_occurrence, generator_index = heapq.heappop(occurrences)
             yield occ_replacer.get_occurrence(current_occurrence)
-        
-            # Attempt to fetch and push the next occurrence from the same generator.
             try:
-                next_occurrence = next(generator)
-                heapq.heappush(occurrences, (next_occurrence.start, next_occurrence, generator))
+                next_occurrence = next(generators[generator_index])
+                heapq.heappush(occurrences, (next_occurrence.start, next_occurrence, generator_index))
             except StopIteration:
-                continue  # No more occurrences from this generator, move on to the next.
+                continue
 
 
 class OccurrenceReplacer:
