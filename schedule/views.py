@@ -90,7 +90,6 @@ class CalendarMixin(CalendarViewPermissionMixin):
 class CalendarView(CalendarMixin, DetailView):
     template_name = "schedule/calendar.html"
 
-
 class FullCalendarView(CalendarMixin, DetailView):
     template_name = "fullcalendar.html"
 
@@ -105,8 +104,9 @@ class CalendarByPeriodsView(CalendarMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        calendar = self.object
-        period_class = self.kwargs["period"]
+        calendar_slug = self.kwargs.get("calendar_slug")
+        period = self.kwargs.get("period")
+        calendar = get_object_or_404(Calendar, slug=calendar_slug)  
         try:
             date = coerce_date_dict(self.request.GET)
         except ValueError:
@@ -118,20 +118,20 @@ class CalendarByPeriodsView(CalendarMixin, DetailView):
                 raise Http404
         else:
             date = timezone.now()
-        event_list = GET_EVENTS_FUNC(self.request, calendar)
 
+        # Adjust this to fetch events from multiple calendars if necessary
+        event_list = GET_EVENTS_FUNC(self.request, calendar)
+        period_class = self.kwargs.get("period", Month)
         local_timezone = timezone.get_current_timezone()
         period = period_class(event_list, date, tzinfo=local_timezone)
 
-        context.update(
-            {
-                "date": date,
-                "period": period,
-                "calendar": calendar,
-                "weekday_names": weekday_names,
-                "here": quote(self.request.get_full_path()),
-            }
-        )
+        context.update({
+            "date": date,
+            "period": period,
+            "calendar": calendar,
+            "weekday_names": weekday_names,
+            "here": quote(self.request.get_full_path()),
+        })
         return context
 
 
